@@ -1,0 +1,7 @@
+[package]
+name = "cursive-example"
+version = "0.1.0"
+authors = ["jonathan gerber <jlgerber@gmail.com>"]
+
+[dependencies]
+cursive = "*"
