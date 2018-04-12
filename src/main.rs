@@ -15,6 +15,7 @@ pub struct Ui {
 
 pub enum UiMessage {
     UpdateOutput(String),
+    Quit,
 }
 
 impl Ui {
@@ -86,6 +87,10 @@ impl Ui {
                         .find_id::<TextView>("output")
                         .unwrap();
                     output.set_content(text);
+                },
+                UiMessage::Quit => {
+                    self.cursive.quit();
+                    return false;
                 }
             }
         }
@@ -129,7 +134,9 @@ impl Controller {
                             .unwrap();
                     },
                     ControllerMessage::Quit => {
-                         self.ui.cursive.quit();
+                         //self.ui.cursive.quit();
+                        self.ui.ui_tx.send(UiMessage::Quit).unwrap();
+                        break;
                     }
                 };
             }
