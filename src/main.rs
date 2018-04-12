@@ -9,7 +9,7 @@ use std::sync::mpsc;
 pub struct Ui {
     cursive: Cursive,
     ui_rx: mpsc::Receiver<UiMessage>,
-    ui_tx: mpsc::Sender<UiMessage>,
+    //ui_tx: mpsc::Sender<UiMessage>,
     controller_tx: mpsc::Sender<ControllerMessage>,
 }
 
@@ -21,11 +21,13 @@ pub enum UiMessage {
 impl Ui {
     /// Create a new Ui object.  The provided `mpsc` sender will be used
     /// by the UI to send messages to the controller.
-    pub fn new(controller_tx: mpsc::Sender<ControllerMessage>) -> Ui {
-        let (ui_tx, ui_rx) = mpsc::channel::<UiMessage>();
+    pub fn new(controller_tx: mpsc::Sender<ControllerMessage>,
+               ui_rx: mpsc::Receiver<UiMessage>
+    ) -> Ui {
+        //let (ui_tx, ui_rx) = mpsc::channel::<UiMessage>();
         let mut ui = Ui {
             cursive: Cursive::new(),
-            ui_tx: ui_tx,
+            //ui_tx: ui_tx,
             ui_rx: ui_rx,
             controller_tx: controller_tx,
         };
@@ -103,6 +105,7 @@ impl Ui {
 }
 
 pub struct Controller {
+    tx: mpsc::Sender<UiMessage>,
     rx: mpsc::Receiver<ControllerMessage>,
     ui: Ui,
 }
@@ -114,11 +117,14 @@ pub enum ControllerMessage {
 
 impl Controller {
     /// Create a new controller
-    pub fn new() -> Result<Controller, String> {
-        let (tx, rx) = mpsc::channel::<ControllerMessage>();
+    pub fn new(
+    ) -> Result<Controller, String> {
+        let (c_tx, c_rx) = mpsc::channel::<ControllerMessage>();
+        let (ui_tx,ui_rx) = mpsc::channel::<UiMessage>();
         Ok(Controller {
-            rx: rx,
-            ui: Ui::new(tx), // removed .clone(). no reason to clone the channel
+            tx: ui_tx,
+            rx: c_rx,
+            ui: Ui::new(c_tx, ui_rx), // removed .clone(). no reason to clone the channel
         })
     }
     /// Run the controller
@@ -128,14 +134,13 @@ impl Controller {
                 // Handle messages arriving from the UI.
                 match message {
                     ControllerMessage::UpdatedInputAvailable(text) => {
-                        self.ui
-                            .ui_tx
+                        self.tx
                             .send(UiMessage::UpdateOutput(text))
                             .unwrap();
                     },
                     ControllerMessage::Quit => {
                          //self.ui.cursive.quit();
-                        self.ui.ui_tx.send(UiMessage::Quit).unwrap();
+                        self.tx.send(UiMessage::Quit).unwrap();
                         break;
                     }
                 };
