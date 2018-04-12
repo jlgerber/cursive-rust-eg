@@ -16,7 +16,7 @@ pub struct Ui {
 }
 
 pub enum UiMessage {
-    UpdateOutput(String),
+    UpdateOutput(String, String),
     Quit,
 }
 
@@ -50,11 +50,15 @@ impl Ui {
         let controller_tx_clone = ui.controller_tx.clone();
 
         ta.set_on_pre_event(Key::Enter, move |s| {
+            let text;
+            { // going from immutable to mutable borrow...
+            let input = s.find_id::<TextArea>(INPUT1).unwrap();
+            text = input.get_content().to_string();
+            }
             let input = &mut s.find_id::<TextArea>(INPUT1).unwrap();
-            let text = format!("input1: {}",input.get_content());
             input.set_content("");
             controller_tx_clone.send(
-                ControllerMessage::UpdatedInputAvailable(text))
+                ControllerMessage::UpdatedInputAvailable(INPUT1.to_string(), text))
                 .unwrap();
         });
 
@@ -70,12 +74,16 @@ impl Ui {
 
         let controller_tx_clone = ui.controller_tx.clone();
         tb.set_on_pre_event(Key::Enter, move |s| {
-            let input = &mut s.find_id::<TextArea>(INPUT2).unwrap();
-            let text = format!("input2: {}",input.get_content());
+            let text;
+            {
+            let input = s.find_id::<TextArea>(INPUT2).unwrap();
+            text = input.get_content().to_string();
+            }
+            let input =&mut s.find_id::<TextArea>(INPUT2).unwrap();
 
             input.set_content("");
             controller_tx_clone.send(
-                ControllerMessage::UpdatedInputAvailable(text))
+                ControllerMessage::UpdatedInputAvailable(INPUT2.to_string(), text))
                 .unwrap();
         });
 
@@ -124,7 +132,7 @@ impl Ui {
         // Process any pending UI messages
         while let Some(message) = self.ui_rx.try_iter().next() {
             match message {
-                UiMessage::UpdateOutput(text) => {
+                UiMessage::UpdateOutput(ctrl, text) => {
                     let mut output = self.cursive
                          .find_id::<TextView>("output")
                          .unwrap();
@@ -132,7 +140,7 @@ impl Ui {
                          { // needs to be in its own scope or output.set_content doesn't work
                             let old = output.get_content();
                             let old_txt = (*old).source();
-                            newtext = if old_txt.len() > 0 {format!("{}\n{}", old_txt, text)} else {text};
+                            newtext = if old_txt.len() > 0 {format!("{}\n{}: {}", old_txt, ctrl, text)} else {format!("{}: {}",ctrl, text)};
                          }
                     output.set_content(newtext);
                 },
@@ -157,7 +165,7 @@ pub struct Controller {
 }
 
 pub enum ControllerMessage {
-    UpdatedInputAvailable(String),
+    UpdatedInputAvailable(String, String),
     Quit
 }
 
@@ -179,9 +187,9 @@ impl Controller {
             while let Some(message) = self.rx.try_iter().next() {
                 // Handle messages arriving from the UI.
                 match message {
-                    ControllerMessage::UpdatedInputAvailable(text) => {
+                    ControllerMessage::UpdatedInputAvailable(ctrl,text) => {
                         self.tx
-                            .send(UiMessage::UpdateOutput(text))
+                            .send(UiMessage::UpdateOutput(ctrl, text))
                             .unwrap();
                     },
                     ControllerMessage::Quit => {
