@@ -9,7 +9,6 @@ use std::sync::mpsc;
 pub struct Ui {
     cursive: Cursive,
     ui_rx: mpsc::Receiver<UiMessage>,
-    //ui_tx: mpsc::Sender<UiMessage>,
     controller_tx: mpsc::Sender<ControllerMessage>,
 }
 
@@ -27,7 +26,6 @@ impl Ui {
         //let (ui_tx, ui_rx) = mpsc::channel::<UiMessage>();
         let mut ui = Ui {
             cursive: Cursive::new(),
-            //ui_tx: ui_tx,
             ui_rx: ui_rx,
             controller_tx: controller_tx,
         };
@@ -38,7 +36,6 @@ impl Ui {
         let mut ta = OnEventView::new(TextArea::new()
                             .content("")
                             .with_id("input"));
-       // ta.set_on_pre_event(Key::Esc, |s| s.quit() );
         let controller_tx_clone = ui.controller_tx.clone();
         ta.set_on_pre_event(Key::Esc, move |s| {
         let input = s.find_id::<TextArea>("input").unwrap();
@@ -139,7 +136,6 @@ impl Controller {
                             .unwrap();
                     },
                     ControllerMessage::Quit => {
-                         //self.ui.cursive.quit();
                         self.tx.send(UiMessage::Quit).unwrap();
                         break;
                     }
