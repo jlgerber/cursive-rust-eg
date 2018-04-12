@@ -37,18 +37,59 @@ impl Ui {
                             .content("")
                             .with_id("input"));
         let controller_tx_clone = ui.controller_tx.clone();
+
         ta.set_on_pre_event(Key::Esc, move |s| {
-        let input = s.find_id::<TextArea>("input").unwrap();
-        let text = input.get_content().to_owned();
-        controller_tx_clone.send(
+            let input = s.find_id::<TextArea>("input").unwrap();
+            controller_tx_clone.send(
+                ControllerMessage::Quit)
+                .unwrap();
+        });
+        let controller_tx_clone = ui.controller_tx.clone();
+
+        ta.set_on_pre_event(Key::Enter, move |s| {
+            let input = &mut s.find_id::<TextArea>("input").unwrap();
+            let text = format!("input1: {}",input.get_content());
+            input.set_content("");
+            controller_tx_clone.send(
+                ControllerMessage::UpdatedInputAvailable(text))
+                .unwrap();
+        });
+
+       let mut tb = OnEventView::new(TextArea::new()
+                            .content("")
+                            .with_id("input2"));
+        let controller_tx_clone = ui.controller_tx.clone();
+        tb.set_on_pre_event(Key::Esc, move |s| {
+            //let input = s.find_id::<TextArea>("input2").unwrap();
+            controller_tx_clone.send(
                 ControllerMessage::Quit)
                 .unwrap();
         });
 
+        let controller_tx_clone = ui.controller_tx.clone();
+        tb.set_on_pre_event(Key::Enter, move |s| {
+            let input = &mut s.find_id::<TextArea>("input2").unwrap();
+            let text = format!("input2: {}",input.get_content());
+
+            input.set_content("");
+            controller_tx_clone.send(
+                ControllerMessage::UpdatedInputAvailable(text))
+                .unwrap();
+        });
+
+
+        let width = SizeConstraint::Fixed(50);
+        let half_height = SizeConstraint::Fixed(20);
+        let sp_ht = SizeConstraint::Fixed(2);
+        let input_pair = LinearLayout::vertical()
+            .child(BoxView::new(width, half_height,ta))
+            .child(BoxView::new(width, sp_ht, TextView::new("")))
+            .child(BoxView::new(width,half_height, tb));
+
         ui.cursive.add_layer(LinearLayout::horizontal()
             .child(BoxView::new(SizeConstraint::Fixed(50),
                                 SizeConstraint::Fixed(110),
-                        ta
+                        input_pair
                         ))
             .child(BoxView::new(SizeConstraint::Fixed(50),
                                 SizeConstraint::Fixed(110),
@@ -57,16 +98,16 @@ impl Ui {
 
 
         // Configure a callback
-        let controller_tx_clone = ui.controller_tx.clone();
-        ui.cursive.add_global_callback(Key::Tab, move |c| {
-            // When the user presses Tab, send an
-            // UpdatedInputAvailable message to the controller.
-            let input = c.find_id::<TextArea>("input").unwrap();
-            let text = input.get_content().to_owned();
-            controller_tx_clone.send(
-                ControllerMessage::UpdatedInputAvailable(text))
-                .unwrap();
-        });
+        // let controller_tx_clone = ui.controller_tx.clone();
+        // ui.cursive.add_global_callback(Key::Tab, move |c| {
+        //     // When the user presses Tab, send an
+        //     // UpdatedInputAvailable message to the controller.
+        //     let input = c.find_id::<TextArea>("input").unwrap();
+        //     let text = input.get_content().to_owned();
+        //     controller_tx_clone.send(
+        //         ControllerMessage::UpdatedInputAvailable(text))
+        //         .unwrap();
+        // });
 
         ui
     }
@@ -83,9 +124,16 @@ impl Ui {
             match message {
                 UiMessage::UpdateOutput(text) => {
                     let mut output = self.cursive
-                        .find_id::<TextView>("output")
-                        .unwrap();
-                    output.set_content(text);
+                         .find_id::<TextView>("output")
+                         .unwrap();
+                         let newtext;
+                         {
+                    let old = output.get_content();
+                    let old_txt = (*old).source();
+                    newtext = if old_txt.len() > 0 {format!("{}\n{}", old_txt, text)} else {text};
+
+                         }
+                    output.set_content(newtext);
                 },
                 UiMessage::Quit => {
                     self.cursive.quit();
