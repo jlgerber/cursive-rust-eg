@@ -6,6 +6,9 @@ use cursive::view::*;
 use cursive::views::*;
 use std::sync::mpsc;
 
+static INPUT1: &'static str = "input";
+static INPUT2: &'static str = "input2";
+
 pub struct Ui {
     cursive: Cursive,
     ui_rx: mpsc::Receiver<UiMessage>,
@@ -35,11 +38,11 @@ impl Ui {
         // TextView for output.
         let mut ta = OnEventView::new(TextArea::new()
                             .content("")
-                            .with_id("input"));
+                            .with_id(INPUT1));
         let controller_tx_clone = ui.controller_tx.clone();
 
         ta.set_on_pre_event(Key::Esc, move |s| {
-            let input = s.find_id::<TextArea>("input").unwrap();
+            let input = s.find_id::<TextArea>(INPUT1).unwrap();
             controller_tx_clone.send(
                 ControllerMessage::Quit)
                 .unwrap();
@@ -47,7 +50,7 @@ impl Ui {
         let controller_tx_clone = ui.controller_tx.clone();
 
         ta.set_on_pre_event(Key::Enter, move |s| {
-            let input = &mut s.find_id::<TextArea>("input").unwrap();
+            let input = &mut s.find_id::<TextArea>(INPUT1).unwrap();
             let text = format!("input1: {}",input.get_content());
             input.set_content("");
             controller_tx_clone.send(
@@ -57,10 +60,9 @@ impl Ui {
 
        let mut tb = OnEventView::new(TextArea::new()
                             .content("")
-                            .with_id("input2"));
+                            .with_id(INPUT2));
         let controller_tx_clone = ui.controller_tx.clone();
         tb.set_on_pre_event(Key::Esc, move |s| {
-            //let input = s.find_id::<TextArea>("input2").unwrap();
             controller_tx_clone.send(
                 ControllerMessage::Quit)
                 .unwrap();
@@ -68,7 +70,7 @@ impl Ui {
 
         let controller_tx_clone = ui.controller_tx.clone();
         tb.set_on_pre_event(Key::Enter, move |s| {
-            let input = &mut s.find_id::<TextArea>("input2").unwrap();
+            let input = &mut s.find_id::<TextArea>(INPUT2).unwrap();
             let text = format!("input2: {}",input.get_content());
 
             input.set_content("");
@@ -102,7 +104,7 @@ impl Ui {
         // ui.cursive.add_global_callback(Key::Tab, move |c| {
         //     // When the user presses Tab, send an
         //     // UpdatedInputAvailable message to the controller.
-        //     let input = c.find_id::<TextArea>("input").unwrap();
+        //     let input = c.find_id::<TextArea>(INPUT1).unwrap();
         //     let text = input.get_content().to_owned();
         //     controller_tx_clone.send(
         //         ControllerMessage::UpdatedInputAvailable(text))
@@ -127,11 +129,10 @@ impl Ui {
                          .find_id::<TextView>("output")
                          .unwrap();
                          let newtext;
-                         {
-                    let old = output.get_content();
-                    let old_txt = (*old).source();
-                    newtext = if old_txt.len() > 0 {format!("{}\n{}", old_txt, text)} else {text};
-
+                         { // needs to be in its own scope or output.set_content doesn't work
+                            let old = output.get_content();
+                            let old_txt = (*old).source();
+                            newtext = if old_txt.len() > 0 {format!("{}\n{}", old_txt, text)} else {text};
                          }
                     output.set_content(newtext);
                 },
