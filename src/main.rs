@@ -6,8 +6,20 @@ use cursive::view::*;
 use cursive::views::*;
 use std::sync::mpsc;
 
-static INPUT1: &'static str = "input";
+static INPUT1: &'static str = "input1";
 static INPUT2: &'static str = "input2";
+
+/// Messages issues by Controller for Ui
+pub enum UiMessage {
+    UpdateOutput(String, String),
+    Quit,
+}
+
+/// Messages issued by UI for controller
+pub enum ControllerMessage {
+    UpdatedInputAvailable(String, String),
+    Quit
+}
 
 pub struct Ui {
     cursive: Cursive,
@@ -15,10 +27,6 @@ pub struct Ui {
     controller_tx: mpsc::Sender<ControllerMessage>,
 }
 
-pub enum UiMessage {
-    UpdateOutput(String, String),
-    Quit,
-}
 
 impl Ui {
     /// Create a new Ui object.  The provided `mpsc` sender will be used
@@ -91,10 +99,10 @@ impl Ui {
         let width = SizeConstraint::Fixed(50);
         let half_height = SizeConstraint::Fixed(20);
         let sp_ht = SizeConstraint::Fixed(2);
-        let input_pair = LinearLayout::vertical()
+        let input_pair = Panel::new(LinearLayout::vertical()
             .child(BoxView::new(width, half_height,ta))
             .child(BoxView::new(width, sp_ht, TextView::new("")))
-            .child(BoxView::new(width,half_height, tb));
+            .child(BoxView::new(width,half_height, tb)));
 
         ui.cursive.add_layer(LinearLayout::horizontal()
             .child(BoxView::new(SizeConstraint::Fixed(50),
@@ -158,16 +166,13 @@ impl Ui {
     }
 }
 
+/// Controller holds pointer to ui and channels
 pub struct Controller {
     tx: mpsc::Sender<UiMessage>,
     rx: mpsc::Receiver<ControllerMessage>,
     ui: Ui,
 }
 
-pub enum ControllerMessage {
-    UpdatedInputAvailable(String, String),
-    Quit
-}
 
 impl Controller {
     /// Create a new controller
@@ -178,7 +183,7 @@ impl Controller {
         Ok(Controller {
             tx: ui_tx,
             rx: c_rx,
-            ui: Ui::new(c_tx, ui_rx), // removed .clone(). no reason to clone the channel
+            ui: Ui::new(c_tx, ui_rx), // removed .clone(). no reason to clone the channel here
         })
     }
     /// Run the controller
