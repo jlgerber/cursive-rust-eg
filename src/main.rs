@@ -1,14 +1,19 @@
 extern crate cursive;
-use cursive::event;
+//use cursive::event;
 use cursive::Cursive;
 use cursive::event::Key;
 use cursive::view::*;
 use cursive::views::*;
 use std::sync::mpsc;
-
+use cursive::align::{HAlign,VAlign, Align};
+use cursive::menu::{MenuTree,MenuItem};
+use std::rc::Rc;
 static INPUT1: &'static str = "input1";
 static INPUT2: &'static str = "input2";
 
+pub fn s<I>(value: I) -> String where I: Into<String> {
+    value.into()
+}
 /// Messages issues by Controller for Ui
 pub enum UiMessage {
     UpdateOutput(String, String),
@@ -18,7 +23,8 @@ pub enum UiMessage {
 /// Messages issued by UI for controller
 pub enum ControllerMessage {
     UpdatedInputAvailable(String, String),
-    Quit
+    Quit,
+    MenuItemSelected(String),
 }
 
 pub struct Ui {
@@ -34,13 +40,11 @@ impl Ui {
     pub fn new(controller_tx: mpsc::Sender<ControllerMessage>,
                ui_rx: mpsc::Receiver<UiMessage>
     ) -> Ui {
-        //let (ui_tx, ui_rx) = mpsc::channel::<UiMessage>();
         let mut ui = Ui {
             cursive: Cursive::new(),
             ui_rx: ui_rx,
             controller_tx: controller_tx,
         };
-
 
         // Create a view tree with a TextArea for input, and a
         // TextView for output.
@@ -49,8 +53,8 @@ impl Ui {
                             .with_id(INPUT1));
         let controller_tx_clone = ui.controller_tx.clone();
 
-        ta.set_on_pre_event(Key::Esc, move |s| {
-            let input = s.find_id::<TextArea>(INPUT1).unwrap();
+        ta.set_on_pre_event(Key::Esc, move |_s| {
+            //let input = s.find_id::<TextArea>(INPUT1).unwrap();
             controller_tx_clone.send(
                 ControllerMessage::Quit)
                 .unwrap();
@@ -74,7 +78,7 @@ impl Ui {
                             .content("")
                             .with_id(INPUT2));
         let controller_tx_clone = ui.controller_tx.clone();
-        tb.set_on_pre_event(Key::Esc, move |s| {
+        tb.set_on_pre_event(Key::Esc, move |_s| {
             controller_tx_clone.send(
                 ControllerMessage::Quit)
                 .unwrap();
@@ -95,13 +99,49 @@ impl Ui {
                 .unwrap();
         });
 
+        //let mut lv = SelectView::new().h_align(HAlign::Center);//.v_align(VAlign::Center);
+        //lv.add_item("test1",1);
+        //lv.add_item("test2",2);
+
+
 
         let width = SizeConstraint::Fixed(50);
         let half_height = SizeConstraint::Fixed(20);
         let sp_ht = SizeConstraint::Fixed(2);
+
+        let controller_tx_clonec = ui.controller_tx.clone();
         let input_pair = Panel::new(LinearLayout::vertical()
             .child(BoxView::new(width, half_height,ta))
-            .child(BoxView::new(width, sp_ht, TextView::new("")))
+            .child(BoxView::new(width,sp_ht, Button::new_raw("[PopupSelection]",  move | s| {
+
+                let mut mt = MenuTree::new();
+                let controller_tx_clone = controller_tx_clonec.clone();
+
+                mt.add_leaf("one", move |_s| {
+                    controller_tx_clone.send(
+                        ControllerMessage::MenuItemSelected("one".to_string())
+                    ).unwrap();
+                });
+                let controller_tx_clone = controller_tx_clonec.clone();
+
+                mt.add_leaf("two", move |_s| {
+                    controller_tx_clone.send(
+                        ControllerMessage::MenuItemSelected("two".to_string())
+                    ).unwrap();
+                });
+
+                let controller_tx_clone = controller_tx_clonec.clone();
+                mt.add_leaf("three", move |_s| {
+                    controller_tx_clone.send(
+                        ControllerMessage::MenuItemSelected("three".to_string())
+                    ).unwrap();
+                });
+
+                let mp = MenuPopup::new(Rc::new(mt));
+
+                s.add_layer(mp)
+
+            }) ))
             .child(BoxView::new(width,half_height, tb)));
 
         ui.cursive.add_layer(LinearLayout::horizontal()
@@ -200,7 +240,13 @@ impl Controller {
                     ControllerMessage::Quit => {
                         self.tx.send(UiMessage::Quit).unwrap();
                         break;
+                    },
+                    ControllerMessage::MenuItemSelected(item) => {
+                        self.tx
+                            .send(UiMessage::UpdateOutput(s("menu"), item))
+                            .unwrap();
                     }
+
                 };
             }
         }
