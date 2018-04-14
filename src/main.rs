@@ -14,11 +14,13 @@ use std::rc::Rc;
 static INPUT1: &'static str = "input1";
 static INPUT2: &'static str = "input2";
 static MSGV:   &'static str = "message";
-
+static OUTPUT: &'static str = "output";
+static BTN1:   &'static str = "button1";
 //
 //  Helper Functions
 //
-pub fn s<I>(value: I) -> String where I: Into<String> {
+fn s<I>(value: I) -> String
+    where I: Into<String> {
     value.into()
 }
 
@@ -30,6 +32,7 @@ pub enum UiMessage {
     UpdateOutput(String, String),
     Quit,
     Msg(String),
+    DisplayDialog(String),
 }
 
 /// Messages issued by UI for controller
@@ -38,6 +41,7 @@ pub enum ControllerMessage {
     Quit,
     MenuItemSelected(String),
     UpdatedMsg(String),
+    PopupPressed(String),
 }
 
 //
@@ -143,8 +147,15 @@ impl Ui {
         b1
     }
 
-    fn build_rightview(&mut self) -> IdView<TextView> {
-        TextView::new("").with_id("output")
+    fn build_rightview(&mut self) -> LinearLayout {
+        let controller_tx_clone = self.get_out_chan();
+        LinearLayout::vertical()
+            .child(BoxView::new( SizeConstraint::Full, SizeConstraint::Full, TextView::new("").with_id(OUTPUT)))
+            .child( Button::new("Popup", move |mut s| {
+                controller_tx_clone.send(
+                    ControllerMessage::PopupPressed("Main Popup".to_string())
+                );
+            }).with_id(BTN1))
     }
     /// build the ui
     pub fn build(mut self) -> Self {
@@ -172,6 +183,7 @@ impl Ui {
             .child(BoxView::new(width,half_height, tb)));
 
         let right_side = Panel::new(self.build_rightview());
+
         let main = LinearLayout::horizontal()
             .child(BoxView::new(width, height, left_side))
             .child(BoxView::new(width, height, right_side));
@@ -209,6 +221,14 @@ impl Ui {
             .set_content(msg);
     }
 
+    fn dialog(&mut self, title: String) {
+        let content = TextView::new(title);
+        let dialog = Dialog::new()
+            .content(content)
+            .dismiss_button("Cancel")
+            .button("Ok", |s| s.quit());
+        self.cursive.add_layer(dialog);
+    }
     /// Step the UI by calling into Cursive's step function, then
     /// processing any UI messages.
     pub fn step(&mut self) -> bool {
@@ -237,6 +257,9 @@ impl Ui {
                 },
                 UiMessage::Msg(message) => {
                     self.message(&message.as_str());
+                },
+                UiMessage::DisplayDialog(title) => {
+                    self.dialog(title);
                 }
             }
         }
@@ -295,6 +318,9 @@ impl Controller {
                     },
                     ControllerMessage::UpdatedMsg(message) => {
                         self.tx.send(UiMessage::Msg(message));
+                    },
+                    ControllerMessage::PopupPressed(message) => {
+                        self.tx.send(UiMessage::DisplayDialog(message));
                     },
                 };
             }
