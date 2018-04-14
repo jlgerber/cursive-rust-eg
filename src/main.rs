@@ -143,6 +143,9 @@ impl Ui {
         b1
     }
 
+    fn build_rightview(&mut self) -> IdView<TextView> {
+        TextView::new("").with_id("output")
+    }
     /// build the ui
     pub fn build(mut self) -> Self {
         //
@@ -168,10 +171,10 @@ impl Ui {
             .child(Panel::new(BoxView::new(width,sp_ht, b1)))
             .child(BoxView::new(width,half_height, tb)));
 
+        let right_side = Panel::new(self.build_rightview());
         let main = LinearLayout::horizontal()
             .child(BoxView::new(width, height, left_side))
-            .child(BoxView::new(width, height, Panel::new(TextView::new("")
-            .with_id("output"))));
+            .child(BoxView::new(width, height, right_side));
 
         let message = Panel::new(LinearLayout::horizontal()
             .child(BoxView::new(label_width, msg_ht, TextView::new("MESSAGE: ")))
