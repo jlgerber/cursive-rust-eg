@@ -221,7 +221,8 @@ impl Ui {
             .set_content(msg);
     }
 
-    fn dialog(&mut self, title: String) {
+    // displays a dialog
+    fn display_dialog(&mut self, title: String) {
         let content = TextView::new(title);
         let dialog = Dialog::new()
             .content(content)
@@ -259,7 +260,7 @@ impl Ui {
                     self.message(&message.as_str());
                 },
                 UiMessage::DisplayDialog(title) => {
-                    self.dialog(title);
+                    self.display_dialog(title);
                 }
             }
         }
