@@ -1,5 +1,4 @@
 extern crate cursive;
-//use cursive::event;
 use cursive::Cursive;
 use cursive::event::Key;
 use cursive::view::*;
@@ -8,16 +7,29 @@ use std::sync::mpsc;
 use cursive::align::{HAlign,VAlign, Align};
 use cursive::menu::{MenuTree,MenuItem};
 use std::rc::Rc;
+
+//
+//   static labels
+//
 static INPUT1: &'static str = "input1";
 static INPUT2: &'static str = "input2";
+static MSGV:   &'static str = "message";
 
+//
+//  Helper Functions
+//
 pub fn s<I>(value: I) -> String where I: Into<String> {
     value.into()
 }
+
+//
+//  Messages
+//
 /// Messages issues by Controller for Ui
 pub enum UiMessage {
     UpdateOutput(String, String),
     Quit,
+    Msg(String),
 }
 
 /// Messages issued by UI for controller
@@ -25,14 +37,17 @@ pub enum ControllerMessage {
     UpdatedInputAvailable(String, String),
     Quit,
     MenuItemSelected(String),
+    UpdatedMsg(String),
 }
 
+//
+//  View
+//
 pub struct Ui {
     cursive: Cursive,
     ui_rx: mpsc::Receiver<UiMessage>,
     controller_tx: mpsc::Sender<ControllerMessage>,
 }
-
 
 impl Ui {
     /// Create a new Ui object.  The provided `mpsc` sender will be used
@@ -40,120 +55,134 @@ impl Ui {
     pub fn new(controller_tx: mpsc::Sender<ControllerMessage>,
                ui_rx: mpsc::Receiver<UiMessage>
     ) -> Ui {
-        let mut ui = Ui {
+         Ui {
             cursive: Cursive::new(),
             ui_rx: ui_rx,
             controller_tx: controller_tx,
-        };
+        }
+    }
 
+    /// Get a clone of the outgoing channel
+    fn get_out_chan(&mut self) -> mpsc::Sender<ControllerMessage>  {
+        self.controller_tx.clone()
+    }
+
+    fn build_eventview(&mut self, title: &'static str) -> OnEventView<IdView<TextArea>> {
         // Create a view tree with a TextArea for input, and a
         // TextView for output.
         let mut ta = OnEventView::new(TextArea::new()
                             .content("")
-                            .with_id(INPUT1));
-        let controller_tx_clone = ui.controller_tx.clone();
+                            .with_id(title));
+        let controller_tx_clone = self.get_out_chan();
 
         ta.set_on_pre_event(Key::Esc, move |_s| {
-            //let input = s.find_id::<TextArea>(INPUT1).unwrap();
             controller_tx_clone.send(
                 ControllerMessage::Quit)
                 .unwrap();
         });
-        let controller_tx_clone = ui.controller_tx.clone();
+        let controller_tx_clone = self.get_out_chan();
 
         ta.set_on_pre_event(Key::Enter, move |s| {
             let text;
             { // going from immutable to mutable borrow...
-            let input = s.find_id::<TextArea>(INPUT1).unwrap();
+            let input = s.find_id::<TextArea>(title).unwrap();
             text = input.get_content().to_string();
             }
-            let input = &mut s.find_id::<TextArea>(INPUT1).unwrap();
+            let input = &mut s.find_id::<TextArea>(title).unwrap();
             input.set_content("");
             controller_tx_clone.send(
-                ControllerMessage::UpdatedInputAvailable(INPUT1.to_string(), text))
+                ControllerMessage::UpdatedInputAvailable(title.to_string(), text))
                 .unwrap();
-        });
-
-       let mut tb = OnEventView::new(TextArea::new()
-                            .content("")
-                            .with_id(INPUT2));
-        let controller_tx_clone = ui.controller_tx.clone();
-        tb.set_on_pre_event(Key::Esc, move |_s| {
             controller_tx_clone.send(
-                ControllerMessage::Quit)
-                .unwrap();
+                ControllerMessage::UpdatedMsg(format!("updated textarea {}",title))
+            ).unwrap();
         });
+        ta
+    }
 
-        let controller_tx_clone = ui.controller_tx.clone();
-        tb.set_on_pre_event(Key::Enter, move |s| {
-            let text;
-            {
-            let input = s.find_id::<TextArea>(INPUT2).unwrap();
-            text = input.get_content().to_string();
-            }
-            let input =&mut s.find_id::<TextArea>(INPUT2).unwrap();
+    // build a button which pops up a menu and communicates the choice
+    fn build_pushbutton(&mut self) -> IdView<Button> {
+        let controller_tx_clonec = self.get_out_chan();
 
-            input.set_content("");
-            controller_tx_clone.send(
-                ControllerMessage::UpdatedInputAvailable(INPUT2.to_string(), text))
-                .unwrap();
-        });
+        let b1 = Button::new_raw("PopupSelection", move | s| {
+            let mut mt = MenuTree::new();
+            let controller_tx_clone = controller_tx_clonec.clone();
 
-        //let mut lv = SelectView::new().h_align(HAlign::Center);//.v_align(VAlign::Center);
-        //lv.add_item("test1",1);
-        //lv.add_item("test2",2);
+            mt.add_leaf("one", move |_s| {
+                controller_tx_clone.send(
+                    ControllerMessage::MenuItemSelected("one".to_string())
+                ).unwrap();
+                controller_tx_clone.send(
+                    ControllerMessage::UpdatedMsg("selected menu item - one".to_string())
+                ).unwrap();
+            });
+            let controller_tx_clone = controller_tx_clonec.clone();
 
+            mt.add_leaf("two", move |_s| {
+                controller_tx_clone.send(
+                    ControllerMessage::MenuItemSelected("two".to_string())
+                ).unwrap();
+               controller_tx_clone.send(
+                    ControllerMessage::UpdatedMsg("selected menu item - two".to_string())
+                ).unwrap();
+            });
 
+            let controller_tx_clone = controller_tx_clonec.clone();
+            mt.add_leaf("three", move |_s| {
+                controller_tx_clone.send(
+                    ControllerMessage::MenuItemSelected("three".to_string())
+                ).unwrap();
+               controller_tx_clone.send(
+                    ControllerMessage::UpdatedMsg("selected menu item - three".to_string())
+                ).unwrap();
+            });
 
-        let width = SizeConstraint::Fixed(50);
-        let half_height = SizeConstraint::Fixed(20);
-        let sp_ht = SizeConstraint::Fixed(2);
+            let mp = MenuPopup::new(Rc::new(mt));
+            s.add_layer(mp)
+        }).with_id("foo");
+        b1
+    }
 
-        let controller_tx_clonec = ui.controller_tx.clone();
-        let input_pair = Panel::new(LinearLayout::vertical()
-            .child(BoxView::new(width, half_height,ta))
-            .child(BoxView::new(width,sp_ht, Button::new_raw("[PopupSelection]",  move | s| {
+    /// build the ui
+    pub fn build(mut self) -> Self {
+        //
+        let width       = SizeConstraint::Fixed(50);
+        let height      = SizeConstraint::Fixed(30);
+        let half_height = SizeConstraint::Fixed(14);
+        let sp_ht       = SizeConstraint::Fixed(1);
 
-                let mut mt = MenuTree::new();
-                let controller_tx_clone = controller_tx_clonec.clone();
+        let label_width = SizeConstraint::Fixed(10);
+        let msg_ht      = SizeConstraint::Fixed(1);
+        let msg_width   = SizeConstraint::Fixed(80);
 
-                mt.add_leaf("one", move |_s| {
-                    controller_tx_clone.send(
-                        ControllerMessage::MenuItemSelected("one".to_string())
-                    ).unwrap();
-                });
-                let controller_tx_clone = controller_tx_clonec.clone();
+        // Create a view tree with a TextArea for input, and a
+        // TextView for output.
+        let ta = self.build_eventview(INPUT1);
+        let tb = self.build_eventview(INPUT2);
 
-                mt.add_leaf("two", move |_s| {
-                    controller_tx_clone.send(
-                        ControllerMessage::MenuItemSelected("two".to_string())
-                    ).unwrap();
-                });
+        let controller_tx_clonec = self.get_out_chan();
+        let b1 = self.build_pushbutton();
 
-                let controller_tx_clone = controller_tx_clonec.clone();
-                mt.add_leaf("three", move |_s| {
-                    controller_tx_clone.send(
-                        ControllerMessage::MenuItemSelected("three".to_string())
-                    ).unwrap();
-                });
-
-                let mp = MenuPopup::new(Rc::new(mt));
-
-                s.add_layer(mp)
-
-            }) ))
+        let left_side = Panel::new(LinearLayout::vertical()
+            .child(BoxView::new(width, half_height, ta))
+            .child(Panel::new(BoxView::new(width,sp_ht, b1)))
             .child(BoxView::new(width,half_height, tb)));
 
-        ui.cursive.add_layer(LinearLayout::horizontal()
-            .child(BoxView::new(SizeConstraint::Fixed(50),
-                                SizeConstraint::Fixed(110),
-                        input_pair
-                        ))
-            .child(BoxView::new(SizeConstraint::Fixed(50),
-                                SizeConstraint::Fixed(110),
-                                Panel::new(TextView::new("")
-                                    .with_id("output")))));
+        let main = LinearLayout::horizontal()
+            .child(BoxView::new(width, height, left_side))
+            .child(BoxView::new(width, height, Panel::new(TextView::new("")
+            .with_id("output"))));
 
+        let message = Panel::new(LinearLayout::horizontal()
+            .child(BoxView::new(label_width, msg_ht, TextView::new("MESSAGE: ")))
+            .child(BoxView::new(msg_width, msg_ht, TextView::new("").with_id(MSGV))));
+
+        let main_w_msg = LinearLayout::vertical()
+            .child(main)
+            .child(message);
+
+
+        self.cursive.add_layer(main_w_msg);
 
         // Configure a callback
         // let controller_tx_clone = ui.controller_tx.clone();
@@ -167,7 +196,14 @@ impl Ui {
         //         .unwrap();
         // });
 
-        ui
+        self
+    }
+
+    pub fn message<'a>(&mut self, msg: &'a str) {
+        self.cursive
+            .find_id::<TextView>(MSGV)
+            .unwrap()
+            .set_content(msg);
     }
 
     /// Step the UI by calling into Cursive's step function, then
@@ -195,6 +231,9 @@ impl Ui {
                 UiMessage::Quit => {
                     self.cursive.quit();
                     return false;
+                },
+                UiMessage::Msg(message) => {
+                    self.message(&message.as_str());
                 }
             }
         }
@@ -206,6 +245,9 @@ impl Ui {
     }
 }
 
+//
+//  Controller
+//
 /// Controller holds pointer to ui and channels
 pub struct Controller {
     tx: mpsc::Sender<UiMessage>,
@@ -213,19 +255,21 @@ pub struct Controller {
     ui: Ui,
 }
 
-
 impl Controller {
     /// Create a new controller
     pub fn new(
     ) -> Result<Controller, String> {
-        let (c_tx, c_rx) = mpsc::channel::<ControllerMessage>();
+        let (c_tx, c_rx)  = mpsc::channel::<ControllerMessage>();
         let (ui_tx,ui_rx) = mpsc::channel::<UiMessage>();
+        let mut ui = Ui::new(c_tx, ui_rx).build();
+        ui.message("Startup Successful");
         Ok(Controller {
             tx: ui_tx,
             rx: c_rx,
-            ui: Ui::new(c_tx, ui_rx), // removed .clone(). no reason to clone the channel here
+            ui: ui,
         })
     }
+
     /// Run the controller
     pub fn run(&mut self) {
         while self.ui.step() {
@@ -245,13 +289,19 @@ impl Controller {
                         self.tx
                             .send(UiMessage::UpdateOutput(s("menu"), item))
                             .unwrap();
-                    }
-
+                    },
+                    ControllerMessage::UpdatedMsg(message) => {
+                        self.tx.send(UiMessage::Msg(message));
+                    },
                 };
             }
         }
     }
 }
+
+//
+//  Main
+//
 
 fn main() {
     // Launch the controller and UI
