@@ -223,12 +223,27 @@ impl Ui {
 
     // displays a dialog
     fn display_dialog(&mut self, title: String) {
-        let content = TextView::new(title);
+        let input1 = LinearLayout::horizontal()
+            .child(TextView::new("Group:   "))
+            .child( BoxView::new( SizeConstraint::Fixed(30), SizeConstraint::Fixed(1),
+                TextArea::new().with_id("group"))
+            );
+        let input2 = LinearLayout::horizontal()
+            .child(TextView::new("Project: "))
+            .child( BoxView::new(SizeConstraint::Fixed(30), SizeConstraint::Fixed(1),
+                TextArea::new().with_id("project"))
+            );
+        let content = LinearLayout::vertical()
+            .child(TextView::new(title))
+            .child(input1)
+            .child(input2);
+
         let dialog = Dialog::new()
             .content(content)
             .dismiss_button("Cancel")
             .button("Ok", |s| s.quit());
-        self.cursive.add_layer(dialog);
+        let result = BoxView::new(SizeConstraint::AtLeast(40), SizeConstraint::Fixed(10), dialog);
+        self.cursive.add_layer(result);
     }
     /// Step the UI by calling into Cursive's step function, then
     /// processing any UI messages.
