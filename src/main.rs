@@ -1,3 +1,4 @@
+#[macro_use] extern crate lazy_static;
 extern crate cursive;
 use cursive::Cursive;
 use cursive::event::Key;
@@ -8,6 +9,18 @@ use cursive::align::{HAlign,VAlign, Align};
 use cursive::menu::{MenuTree,MenuItem};
 use std::rc::Rc;
 
+use std::collections::HashMap;
+
+
+lazy_static! {
+    static ref GROUPGROJECTS: HashMap<&'static str, Vec<&'static str>> = {
+        let mut m = HashMap::new();
+        m.insert("2d", vec!["nukestartup","nukemenus","openandupdate","indiaspecial"]);
+        m.insert("layout", vec!["layouttools","layoutpipeline","layouteffort"]);
+        m.insert("transfer", vec!["baz", "bla","barg"]);
+        m
+    };
+}
 //
 //   static labels
 //
@@ -16,6 +29,8 @@ static INPUT2: &'static str = "input2";
 static MSGV:   &'static str = "message";
 static OUTPUT: &'static str = "output";
 static BTN1:   &'static str = "button1";
+static GROUP:  &'static str = "group";
+static PROJECT:&'static str = "project";
 //
 //  Helper Functions
 //
@@ -151,10 +166,10 @@ impl Ui {
         let controller_tx_clone = self.get_out_chan();
         LinearLayout::vertical()
             .child(BoxView::new( SizeConstraint::Full, SizeConstraint::Full, TextView::new("").with_id(OUTPUT)))
-            .child( Button::new("Popup", move |mut s| {
+            .child( Button::new("Popup", move |_s| {
                 controller_tx_clone.send(
                     ControllerMessage::PopupPressed("Main Popup".to_string())
-                );
+                ).unwrap();
             }).with_id(BTN1))
     }
     /// build the ui
@@ -174,7 +189,7 @@ impl Ui {
         let ta = self.build_eventview(INPUT1);
         let tb = self.build_eventview(INPUT2);
 
-        let controller_tx_clonec = self.get_out_chan();
+        //let controller_tx_clonec = self.get_out_chan();
         let b1 = self.build_pushbutton();
 
         let left_side = Panel::new(LinearLayout::vertical()
@@ -195,7 +210,6 @@ impl Ui {
         let main_w_msg = LinearLayout::vertical()
             .child(main)
             .child(message);
-
 
         self.cursive.add_layer(main_w_msg);
 
@@ -223,16 +237,20 @@ impl Ui {
 
     // displays a dialog
     fn display_dialog(&mut self, title: String) {
+        //let controller_tx_clone = self.get_out_chan();
+
         let input1 = LinearLayout::horizontal()
             .child(TextView::new("Group:   "))
             .child( BoxView::new( SizeConstraint::Fixed(30), SizeConstraint::Fixed(1),
-                TextArea::new().with_id("group"))
+                TextArea::new().with_id(GROUP))
             );
+
         let input2 = LinearLayout::horizontal()
             .child(TextView::new("Project: "))
             .child( BoxView::new(SizeConstraint::Fixed(30), SizeConstraint::Fixed(1),
-                TextArea::new().with_id("project"))
+                TextArea::new().with_id(PROJECT))
             );
+
         let content = LinearLayout::vertical()
             .child(TextView::new(title))
             .child(input1)
@@ -241,7 +259,21 @@ impl Ui {
         let dialog = Dialog::new()
             .content(content)
             .dismiss_button("Cancel")
-            .button("Ok", |s| s.quit());
+            .button("Ok",   |s| {
+                let group = s.find_id::<TextArea>(GROUP).unwrap();
+                let project = s.find_id::<TextArea>(PROJECT).unwrap();
+                let mut output = s.find_id::<TextView>(OUTPUT)
+                 .unwrap();
+                let msg;
+                { // needs to be in its own scope or output.set_content doesn't work
+                    let old = output.get_content();
+                    let old_txt = (*old).source();
+                    msg = format!("{}\nGroup: {}\nProject: {}",old_txt, group.get_content(), project.get_content());
+                }
+                output.set_content(msg);
+                s.pop_layer();
+            });
+
         let result = BoxView::new(SizeConstraint::AtLeast(40), SizeConstraint::Fixed(10), dialog);
         self.cursive.add_layer(result);
     }
@@ -324,7 +356,9 @@ impl Controller {
                             .unwrap();
                     },
                     ControllerMessage::Quit => {
-                        self.tx.send(UiMessage::Quit).unwrap();
+                        self.tx
+                            .send(UiMessage::Quit)
+                            .unwrap();
                         break;
                     },
                     ControllerMessage::MenuItemSelected(item) => {
@@ -333,10 +367,12 @@ impl Controller {
                             .unwrap();
                     },
                     ControllerMessage::UpdatedMsg(message) => {
-                        self.tx.send(UiMessage::Msg(message));
+                        self.tx.send(UiMessage::Msg(message)).unwrap();
                     },
                     ControllerMessage::PopupPressed(message) => {
-                        self.tx.send(UiMessage::DisplayDialog(message));
+                        self.tx
+                            .send(UiMessage::DisplayDialog(message))
+                            .unwrap();
                     },
                 };
             }

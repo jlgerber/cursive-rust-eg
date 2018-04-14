@@ -5,3 +5,4 @@ authors = ["jonathan gerber <jlgerber@gmail.com>"]
 
 [dependencies]
 cursive = "*"
+lazy_static = "1.0"
