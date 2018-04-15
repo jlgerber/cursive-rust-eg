@@ -241,46 +241,27 @@ impl Ui {
         }
 
         // set callback for when the user selects it
-        input1.set_on_submit(  move | s, item:&str| {
-            /*
-            let results = &GROUP_PROJECTS[item];
-            // find the project
-            let mut project_selectview = s.find_id::<SelectView>(PROJECT).unwrap();
-
-            // clear the project. Surprisingly, there isn't a convenience function
-            // to do this.
-            loop {
-                let len = project_selectview.len();
-                if len == 0 {
-                    break;
-                }
-                project_selectview.remove_item(len-1);
-            }
-
-            // Now add the new projects matcing the current group
-            for key in results {
-                project_selectview.add_item(*key, (*key).to_string());
-            }
-            */
+        input1.set_on_submit(  move | _s, item:&str| {
             // send message indicating that the group has been selected
             controller_tx_clone.send(
                 ControllerMessage::GroupSelected(item.to_string())
             ).unwrap();
-
         });
 
         let controller_tx_clone = self.get_out_chan();
 
-        input2.set_on_submit( move | s, item:&str| {
+        input2.set_on_submit( move | _s, item:&str| {
             controller_tx_clone.send(
                 ControllerMessage::ProjectSelected(item.to_string())
             ).unwrap();
         });
         let input1 = LinearLayout::vertical()
             .child(TextView::new("Group"))
+            .child(TextView::new(""))
             .child(IdView::new(GROUP, input1));
         let input2 = LinearLayout::vertical()
             .child(TextView::new("Project"))
+            .child(TextView::new(""))
             .child(IdView::new(PROJECT, input2));
 
         let content = Panel::new(LinearLayout::horizontal()
