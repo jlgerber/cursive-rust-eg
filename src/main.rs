@@ -1,16 +1,9 @@
 #[macro_use] extern crate lazy_static;
 extern crate cursive;
-use cursive::Cursive;
-use cursive::event::Key;
-use cursive::view::*;
-use cursive::views::*;
-use std::sync::mpsc;
-use cursive::align::{HAlign,VAlign, Align};
-use cursive::menu::{MenuTree,MenuItem};
-use std::rc::Rc;
+use cursive::{ Cursive, event::Key, align::HAlign,
+               menu::MenuTree, view::*, views::* };
 
-use std::collections::HashMap;
-
+use std::{rc::Rc, sync::mpsc, collections::HashMap };
 
 lazy_static! {
     static ref GROUP_PROJECTS: HashMap<String, Vec<&'static str>> = {
@@ -31,6 +24,7 @@ static OUTPUT: &'static str = "output";
 static BTN1:   &'static str = "button1";
 static GROUP:  &'static str = "group";
 static PROJECT:&'static str = "project";
+
 //
 //  Helper Functions
 //
@@ -351,6 +345,7 @@ impl Ui {
 //
 //  Controller
 //
+
 /// Controller holds pointer to ui and channels
 pub struct Controller {
     tx: mpsc::Sender<UiMessage>,
@@ -394,31 +389,36 @@ impl Controller {
                             .unwrap();
                         break;
                     },
+
                     ControllerMessage::MenuItemSelected(item) => {
                         self.tx
                             .send(UiMessage::UpdateOutput(s("menu"), item))
                             .unwrap();
                     },
+
                     ControllerMessage::UpdatedMsg(message) => {
                         self.tx.send(UiMessage::Msg(message)).unwrap();
                     },
+
                     ControllerMessage::PopupPressed(message) => {
                         self.tx
                             .send(UiMessage::DisplayDialog(message))
                             .unwrap();
                     },
+
                     ControllerMessage::GroupSelected(group) => {
                         self.tx.send(UiMessage::Msg(format!("Group {} selected",group))).unwrap();
                         self.tx.send(UiMessage::UpdateProjectForGroup(group.clone())).unwrap();
 
                         self.group = Some(group);
                         self.project = None;
-
                     },
+
                     ControllerMessage::ProjectSelected(project) =>{
                         self.tx.send(UiMessage::Msg(format!("Project {} selected",project))).unwrap();
                         self.project = Some(project);
                     },
+
                     ControllerMessage::GroupProjOkSelected => {
                         let mut problem= false;
                         if self.group.is_none() {
@@ -438,6 +438,7 @@ impl Controller {
                                 .unwrap();
                         }
                     }
+                // End of pattern match
                 };
             }
         }
