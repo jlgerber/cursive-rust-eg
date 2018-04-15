@@ -257,11 +257,11 @@ impl Ui {
         });
         let input1 = LinearLayout::vertical()
             .child(TextView::new("Group"))
-            .child(TextView::new(""))
+            .child(TextView::new("-----"))
             .child(IdView::new(GROUP, input1));
         let input2 = LinearLayout::vertical()
             .child(TextView::new("Project"))
-            .child(TextView::new(""))
+            .child(TextView::new("-------"))
             .child(IdView::new(PROJECT, input2));
 
         let content = Panel::new(LinearLayout::horizontal()
